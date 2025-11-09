@@ -99,7 +99,6 @@ hangar fleet "NetJets"
 # OR logic with pipe separator (great for finding multiple airlines)
 hangar fleet "LAPD|Los Angeles Police"     # Either pattern matches
 hangar fleet "Delta|American|United"       # Any of the three
-hangar fleet "United|Delta|American"       # Any of the three
 
 # Filter by state
 hangar fleet "Delta" --state GA
