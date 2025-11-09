@@ -184,8 +184,8 @@ def search(n_number: str, skip_age_check: bool = False) -> pd.DataFrame:
             o.owner_name,
             o.city,
             o.state,
-            o.zip5,
-            o.address_all_std
+            o.zip,
+            o.address
         FROM aircraft_decoded a
         LEFT JOIN owners_clean o ON a.n_number = o.n_number
         WHERE UPPER(a.n_number) = UPPER(?)
