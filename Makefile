@@ -1,4 +1,4 @@
-.PHONY: help fetch normalize publish verify all clean install test
+.PHONY: help fetch normalize publish verify all clean install test update status
 
 help:  ## Show this help message
 	@echo "Hangarbay Makefile"
@@ -7,6 +7,12 @@ help:  ## Show this help message
 
 install:  ## Install package in development mode
 	pip install -e ".[dev]"
+
+update:  ## Update all data (fetch, normalize, publish)
+	hangar update
+
+status:  ## Show data status and age
+	hangar status
 
 fetch:  ## Download latest FAA registry files
 	python -m pipelines.fetch

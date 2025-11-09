@@ -13,12 +13,18 @@ cd hangarbay
 pip install -e ".[dev]"
 
 # Run the full pipeline (~2 minutes)
+hangar update     # Download, normalize, and publish (all-in-one)
+
+# Or run steps individually
 hangar fetch      # Download FAA data
 hangar normalize  # Parse to typed Parquet tables
 hangar publish    # Build DuckDB + SQLite FTS indexes
 
 # Or use make
 make all
+
+# Check data status and age
+hangar status
 
 # Start querying!
 hangar search N100
@@ -136,8 +142,14 @@ CLI / Python API
 # Run tests
 make test
 
-# Full pipeline
-make all
+# Update data
+make update       # or: hangar update
+
+# Check data status
+make status       # or: hangar status
+
+# Full pipeline (individual steps)
+make all          # fetch, normalize, publish, verify
 
 # Individual steps
 make fetch

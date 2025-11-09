@@ -1,5 +1,7 @@
 """CLI interface for hangarbay (command: hangar)."""
 
+import json
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 import pandas as pd
@@ -12,6 +14,52 @@ app = typer.Typer(
     add_completion=False,
 )
 console = Console()
+
+
+def get_data_age_info(data_root: Path = Path("data")) -> Optional[dict]:
+    """
+    Get information about the current data age.
+    
+    Returns:
+        dict with 'snapshot_date', 'days_old', 'age_warning' or None if no data
+    """
+    manifest_path = data_root / "publish" / "_meta" / "normalize.json"
+    
+    if not manifest_path.exists():
+        return None
+    
+    try:
+        with open(manifest_path) as f:
+            meta = json.load(f)
+        
+        snapshot_date_str = meta.get("snapshot_date", "unknown")
+        if snapshot_date_str == "unknown":
+            return None
+        
+        snapshot_date = datetime.fromisoformat(snapshot_date_str)
+        days_old = (datetime.now() - snapshot_date).days
+        
+        return {
+            "snapshot_date": snapshot_date_str,
+            "days_old": days_old,
+            "age_warning": days_old >= 30
+        }
+    except Exception:
+        return None
+
+
+def show_age_warning(skip_check: bool = False):
+    """Show warning if data is stale (30+ days old)."""
+    if skip_check:
+        return
+    
+    age_info = get_data_age_info()
+    if age_info and age_info["age_warning"]:
+        console.print(
+            f"[yellow]⚠️  Data is {age_info['days_old']} days old "
+            f"(last updated: {age_info['snapshot_date']})[/yellow]"
+        )
+        console.print(f"[yellow]   Run 'hangar update' to fetch the latest FAA data[/yellow]\n")
 
 
 @app.command()
@@ -62,11 +110,81 @@ def publish(
 
 
 @app.command()
+def update(
+    data_root: Path = typer.Option(Path("data"), help="Root data directory"),
+):
+    """Update all data: fetch → normalize → publish (full pipeline)."""
+    from pipelines.fetch import fetch as fetch_pipeline
+    from pipelines.normalize import normalize as normalize_pipeline
+    from pipelines.publish import publish as publish_pipeline
+    
+    console.print("[bold cyan]Running full update pipeline...[/bold cyan]\n")
+    
+    try:
+        # Step 1: Fetch
+        console.print("[cyan]Step 1/3: Fetching FAA data...[/cyan]")
+        raw_dir = fetch_pipeline(data_root=data_root)
+        console.print(f"[green]✓ Fetch complete[/green]\n")
+        
+        # Step 2: Normalize
+        console.print("[cyan]Step 2/3: Normalizing data...[/cyan]")
+        publish_dir = normalize_pipeline(data_root=data_root)
+        console.print(f"[green]✓ Normalize complete[/green]\n")
+        
+        # Step 3: Publish
+        console.print("[cyan]Step 3/3: Publishing to databases...[/cyan]")
+        publish_dir = publish_pipeline(data_root=data_root)
+        console.print(f"[green]✓ Publish complete[/green]\n")
+        
+        console.print("[bold green]✓ Update complete! Data is now current.[/bold green]")
+        
+    except Exception as e:
+        console.print(f"[red]Error during update: {e}[/red]")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def status(
+    data_root: Path = typer.Option(Path("data"), help="Root data directory"),
+):
+    """Show current data status and age."""
+    from rich.table import Table
+    
+    age_info = get_data_age_info(data_root)
+    
+    if not age_info:
+        console.print("[yellow]No data found. Run 'hangar update' to fetch FAA data.[/yellow]")
+        return
+    
+    # Build status table
+    table = Table(show_header=False, box=None)
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="white")
+    
+    table.add_row("Snapshot Date", age_info["snapshot_date"])
+    table.add_row("Days Old", str(age_info["days_old"]))
+    
+    if age_info["age_warning"]:
+        table.add_row("Status", "[yellow]⚠️  Stale (30+ days)[/yellow]")
+    else:
+        table.add_row("Status", "[green]✓ Current[/green]")
+    
+    console.print("\n[bold]Data Status[/bold]\n")
+    console.print(table)
+    
+    if age_info["age_warning"]:
+        console.print(f"\n[yellow]Run 'hangar update' to fetch the latest FAA data[/yellow]")
+    
+    console.print()
+
+
+@app.command()
 def sql(
     query: str,
     database: Path = typer.Option(Path("data/publish/registry.duckdb"), help="DuckDB database path"),
     output_format: str = typer.Option("table", help="Output format: table, json, csv"),
     case_insensitive: bool = typer.Option(False, "--case-insensitive", "-i", help="Convert LIKE to ILIKE for case-insensitive matching"),
+    skip_age_check: bool = typer.Option(False, "--skip-age-check", help="Skip data age warning"),
 ):
     """Execute SQL query against the registry database.
     
@@ -77,6 +195,9 @@ def sql(
     """
     import duckdb
     import re
+    
+    # Show age warning if data is stale
+    show_age_warning(skip_age_check)
     
     if not database.exists():
         console.print(f"[red]Database not found: {database}[/red]")
@@ -135,9 +256,15 @@ def sql(
 
 
 @app.command()
-def search(n_number: str):
+def search(
+    n_number: str,
+    skip_age_check: bool = typer.Option(False, "--skip-age-check", help="Skip data age warning"),
+):
     """Search for a specific N-number registration."""
     import duckdb
+    
+    # Show age warning if data is stale
+    show_age_warning(skip_age_check)
     
     database = Path("data/publish/registry.duckdb")
     if not database.exists():

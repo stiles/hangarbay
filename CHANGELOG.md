@@ -24,6 +24,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - 40+ certificate type codes (Standard, Experimental, Light Sport, Restricted, etc.)
 
 ### Added
+- **New commands:**
+  - `hangar update` - Run full pipeline (fetch → normalize → publish) in one command
+  - `hangar status` - Check data age and show warning if stale (30+ days)
+- **Data age warnings:**
+  - `hangar search` and `hangar sql` now show warnings if data is 30+ days old
+  - Prompts users to run `hangar update` to refresh data
+  - Add `--skip-age-check` flag to disable warnings (useful for scripts)
 - **Reference tables** for code lookups:
   - `status_codes` - All 41 registration status codes with descriptions
   - `airworthiness_classes` - 9 certificate classes with descriptions
