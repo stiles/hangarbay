@@ -15,11 +15,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Expanded field names ("Year Manufactured" vs "Year Mfr", "Certificate Type" vs "Registration Type")
   - Clean structure with colons and proper spacing
   - Combined Make & Model on single line
+- **Improved `hangar sql` output formatting**:
+  - Replaced `<NA>` and `NaT` with empty strings for cleaner display
+  - Stripped timestamps from dates (show "2023-05-19" instead of "2023-05-19 00:00:00")
+  - Cleaner, more professional table output
 - Added comprehensive code lookups based on official FAA data dictionary (`data/reference/ardata.txt`)
   - 41 status codes (including all pending, expired, revoked states)
   - 40+ certificate type codes (Standard, Experimental, Light Sport, Restricted, etc.)
 
 ### Added
+- **Reference tables** for code lookups:
+  - `status_codes` - All 41 registration status codes with descriptions
+  - `airworthiness_classes` - 9 certificate classes with descriptions
+  - `owner_types` - 8 owner type codes with descriptions
+- **Decoded views** for convenient querying:
+  - `aircraft_decoded` - Aircraft table with all codes decoded and make/model joined
+  - `owners_clean` - Simplified owner table with only standardized fields and decoded owner type
 - `hangar sql` now supports `--case-insensitive` (`-i`) flag to automatically convert `LIKE` to `ILIKE` for case-insensitive text matching
   - Example: `hangar sql "SELECT * FROM owners WHERE owner_name_std LIKE '%boeing%'" -i`
 
