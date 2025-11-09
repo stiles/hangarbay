@@ -4,9 +4,11 @@ A reproducible workflow for the [FAA aircraft registry](https://www.faa.gov/lice
 
 ## Quick start
 
+**Requirements:** Python 3.9+
+
 ```bash
 # Clone and install
-git clone <repo-url> hangarbay
+git clone https://github.com/stiles/hangarbay.git
 cd hangarbay
 pip install -e ".[dev]"
 
@@ -133,7 +135,7 @@ make clean
 
 ## Design philosophy
 
-Built for researchers and data journalists who need reliable, repeatable analysis. The architecture is simple: download → parse → index → query. No black boxes, no vendor lock-in. Transparent data flow, efficient storage, fast queries. 
+Built for researchers and data journalists who need reliable, repeatable analysis. The architecture is simple: download → parse → index → query. No black boxes or vendors. Transparent data flow, efficient storage and fast queries. 
 
 ## License
 
