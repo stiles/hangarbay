@@ -29,6 +29,8 @@ A reproducible workflow for the FAA aircraft registry you can pick up after mont
 - Successfully processing 307,793 aircraft registrations
 
 **📋 FUTURE ENHANCEMENTS:**
+- Better CLI output of tables (both raw and standard columns appear)
+  - Codes such as "owner_type" aren't explained
 - Python API for programmatic access (`from hangarbay import Registry`)
 - `hangar fleet` command for owner-based fleet search
 - Verify checks and anomaly scans (soft warnings)

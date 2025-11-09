@@ -100,6 +100,18 @@ def sql(
         else:
             # Pretty table output with Rich
             from rich.table import Table
+            
+            def format_cell_value(val):
+                """Format cell values for clean display."""
+                val_str = str(val)
+                # Replace pandas NA/NaT with empty string
+                if val_str in ('<NA>', 'NaT', 'nan', 'None'):
+                    return ''
+                # Strip time from datetime stamps (keep just date)
+                if ' 00:00:00' in val_str:
+                    return val_str.replace(' 00:00:00', '')
+                return val_str
+            
             table = Table(show_header=True, header_style="bold cyan")
             
             # Add columns
@@ -108,7 +120,7 @@ def sql(
             
             # Add rows (limit to 100 for display)
             for idx, row in result.head(100).iterrows():
-                table.add_row(*[str(val) for val in row])
+                table.add_row(*[format_cell_value(val) for val in row])
             
             if len(result) > 100:
                 console.print(f"\n[dim]Showing first 100 of {len(result)} rows[/dim]")

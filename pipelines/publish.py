@@ -67,6 +67,132 @@ def create_duckdb(publish_dir: Path, duckdb_path: Path) -> None:
     summary_count = conn.execute("SELECT COUNT(*) FROM owners_summary").fetchone()[0]
     console.print(f"[green]✓ Created owners_summary: {summary_count:,} rows[/green]")
     
+    # Create reference/lookup tables for code decoding
+    console.print(f"[cyan]Creating reference tables...[/cyan]")
+    
+    conn.execute("""
+        CREATE TABLE status_codes AS
+        SELECT * FROM (VALUES
+            ('V', 'Valid'),
+            ('M', 'Valid - Manufacturer/Dealer'),
+            ('T', 'Valid - Trainee'),
+            ('R', 'Registration Pending'),
+            ('N', 'Non-Citizen Corp (flight hours not reported)'),
+            ('E', 'Revoked by Enforcement'),
+            ('W', 'Invalid/Ineffective'),
+            ('D', 'Expired Dealer'),
+            ('A', 'Triennial Form Mailed'),
+            ('S', 'Second Triennial Form Mailed'),
+            ('X', 'Enforcement Letter'),
+            ('Z', 'Permanent Reserved'),
+            ('1', 'Triennial Form Undeliverable'),
+            ('2', 'N-Number Assigned - Not Yet Registered'),
+            ('3', 'N-Number Assigned (Non Type Certificated) - Not Yet Registered'),
+            ('4', 'N-Number Assigned (Import) - Not Yet Registered'),
+            ('5', 'Reserved N-Number'),
+            ('6', 'Administratively Canceled'),
+            ('7', 'Sale Reported'),
+            ('8', 'Second Triennial Mailed - No Response'),
+            ('9', 'Registration Revoked'),
+            ('10', 'N-Number Assigned - Pending Cancellation'),
+            ('11', 'N-Number Assigned (Amateur) - Pending Cancellation'),
+            ('12', 'N-Number Assigned (Import) - Pending Cancellation'),
+            ('13', 'Registration Expired'),
+            ('14', 'First Notice for Re-Registration'),
+            ('15', 'Second Notice for Re-Registration'),
+            ('16', 'Registration Expired - Pending Cancellation'),
+            ('17', 'Sale Reported - Pending Cancellation'),
+            ('18', 'Sale Reported - Canceled'),
+            ('19', 'Registration Pending - Pending Cancellation'),
+            ('20', 'Registration Pending - Canceled'),
+            ('21', 'Revoked - Pending Cancellation'),
+            ('22', 'Revoked - Canceled'),
+            ('23', 'Expired Dealer - Pending Cancellation'),
+            ('24', 'Third Notice for Re-Registration'),
+            ('25', 'First Notice for Registration Renewal'),
+            ('26', 'Second Notice for Registration Renewal'),
+            ('27', 'Registration Expired'),
+            ('28', 'Third Notice for Registration Renewal'),
+            ('29', 'Registration Expired - Pending Cancellation')
+        ) AS t(code, description)
+    """)
+    
+    conn.execute("""
+        CREATE TABLE airworthiness_classes AS
+        SELECT * FROM (VALUES
+            ('1', 'Standard'),
+            ('2', 'Limited'),
+            ('3', 'Restricted'),
+            ('4', 'Experimental'),
+            ('5', 'Provisional'),
+            ('6', 'Multiple'),
+            ('7', 'Primary'),
+            ('8', 'Special Flight Permit'),
+            ('9', 'Light Sport')
+        ) AS t(code, description)
+    """)
+    
+    conn.execute("""
+        CREATE TABLE owner_types AS
+        SELECT * FROM (VALUES
+            ('1', 'Individual'),
+            ('2', 'Partnership'),
+            ('3', 'Corporation'),
+            ('4', 'Co-Owned'),
+            ('5', 'Government'),
+            ('7', 'LLC'),
+            ('8', 'Non-Citizen Corporation'),
+            ('9', 'Non-Citizen Co-Owned')
+        ) AS t(code, description)
+    """)
+    
+    console.print(f"[green]✓ Created reference tables[/green]")
+    
+    # Create decoded views for convenience
+    console.print(f"[cyan]Creating decoded views...[/cyan]")
+    
+    conn.execute("""
+        CREATE VIEW aircraft_decoded AS
+        SELECT 
+            a.n_number,
+            a.serial_no,
+            a.mfr_mdl_code,
+            m.maker,
+            m.model,
+            a.engine_code,
+            a.year_mfr,
+            a.airworthiness_class as airworthiness_code,
+            ac.description as airworthiness_class,
+            a.seats,
+            a.engines,
+            a.reg_status as status_code,
+            s.description as reg_status,
+            a.status_date,
+            a.reg_expiration,
+            a.is_deregistered
+        FROM aircraft a
+        LEFT JOIN aircraft_make_model m ON a.mfr_mdl_code = m.mfr_mdl_code
+        LEFT JOIN status_codes s ON a.reg_status = s.code
+        LEFT JOIN airworthiness_classes ac ON a.airworthiness_class = ac.code
+    """)
+    
+    conn.execute("""
+        CREATE VIEW owners_clean AS
+        SELECT 
+            n_number,
+            o.owner_type as owner_type_code,
+            ot.description as owner_type,
+            owner_name_std as owner_name,
+            address_all_std as address,
+            city_std as city,
+            state_std as state,
+            zip5 as zip
+        FROM owners o
+        LEFT JOIN owner_types ot ON o.owner_type = ot.code
+    """)
+    
+    console.print(f"[green]✓ Created decoded views[/green]")
+    
     # Create some useful indexes
     console.print(f"[cyan]Creating indexes...[/cyan]")
     

@@ -68,13 +68,17 @@ Execute analytical queries with pretty output:
 # Total aircraft
 hangar sql "SELECT COUNT(*) FROM aircraft"
 
+# Use decoded views for readable output
+hangar sql "SELECT * FROM aircraft_decoded WHERE year_mfr > 2020 LIMIT 10"
+hangar sql "SELECT * FROM owners_clean WHERE owner_name LIKE '%boeing%'" -i
+
 # Top manufacturers
 hangar sql "SELECT maker, COUNT(*) as count FROM aircraft 
   JOIN aircraft_make_model USING(mfr_mdl_code) 
   WHERE maker != '' GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
 
-# Find company fleets (case-insensitive search)
-hangar sql "SELECT * FROM owners WHERE owner_name_std LIKE '%boeing%'" -i
+# Lookup status codes
+hangar sql "SELECT * FROM status_codes"
 
 # Top states by registrations
 hangar sql "SELECT state_std, COUNT(*) as count FROM owners 
@@ -86,12 +90,23 @@ hangar sql "SELECT * FROM engines LIMIT 5" --output-format csv
 ```
 
 ### Available tables
+
+**Core Tables:**
 - **aircraft** - Current registration facts (N-number, serial, make/model, year, status)
 - **registrations** - Canonical registration state (type, status, dates)
 - **owners** - Owner records with raw and standardized addresses
 - **owners_summary** - Aggregated ownership (co-owners, counts)
 - **aircraft_make_model** - Make/model reference (Cessna 172, Boeing 737, etc.)
 - **engines** - Engine specifications (manufacturer, horsepower, type)
+
+**Decoded Views (Recommended):**
+- **aircraft_decoded** - Aircraft with decoded status codes and joined make/model
+- **owners_clean** - Simplified owner table (standardized fields only, decoded owner type)
+
+**Reference Tables:**
+- **status_codes** - Registration status code lookups
+- **airworthiness_classes** - Airworthiness certificate class lookups  
+- **owner_types** - Owner type code lookups
 
 ## Data quality
 
