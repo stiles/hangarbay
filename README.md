@@ -89,10 +89,19 @@ hangar sql "SELECT * FROM status_codes"
 # Top states by registrations
 hangar sql "SELECT state_std, COUNT(*) as count FROM owners 
   WHERE state_std != '' GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
+```
 
-# Export to JSON or CSV
-hangar sql "SELECT * FROM engines LIMIT 5" --output-format json
-hangar sql "SELECT * FROM engines LIMIT 5" --output-format csv
+**Output Formats:**
+
+```bash
+# Pretty table (default)
+hangar sql "SELECT * FROM status_codes LIMIT 3"
+
+# JSON output (for APIs/scripts)
+hangar sql "SELECT * FROM status_codes LIMIT 3" --output-format json
+
+# CSV output (for Excel/spreadsheets)
+hangar sql "SELECT * FROM status_codes LIMIT 3" --output-format csv
 ```
 
 ### Available tables
