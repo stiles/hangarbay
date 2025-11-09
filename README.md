@@ -52,6 +52,25 @@ Look up any aircraft registration with decoded status codes and human-readable o
 hangar search N221LA
 ```
 
+### Fleet Search
+Find all aircraft owned by a person or company:
+
+```bash
+# Search by owner name (case-insensitive)
+hangar fleet "United Airlines"
+hangar fleet "LAPD"
+hangar fleet "NetJets"
+
+# Filter by state
+hangar fleet "Delta" --state GA
+
+# Export to CSV
+hangar fleet "Boeing" --export boeing_fleet.csv
+
+# Limit results
+hangar fleet "Cessna" --limit 20
+```
+
 ```
 Aircraft Registration: N221LA
 

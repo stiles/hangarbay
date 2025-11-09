@@ -488,6 +488,154 @@ def search(
 
 
 @app.command()
+def fleet(
+    owner: str,
+    state: Optional[str] = typer.Option(None, "--state", help="Filter by state (e.g., CA, TX)"),
+    export: Optional[Path] = typer.Option(None, "--export", help="Export results to CSV file"),
+    limit: int = typer.Option(100, "--limit", help="Maximum results to show (0 for all)"),
+    skip_age_check: bool = typer.Option(False, "--skip-age-check", help="Skip data age warning"),
+):
+    """Find all aircraft owned by a person or company.
+    
+    Searches owner names case-insensitively. Use % as wildcard.
+    
+    Examples:
+      hangar fleet "United Airlines"
+      hangar fleet "LAPD" --state CA
+      hangar fleet "Boeing" --export boeing_fleet.csv
+    """
+    import duckdb
+    
+    # Show age warning if data is stale
+    show_age_warning(skip_age_check)
+    
+    database = Path("data/publish/registry.duckdb")
+    if not database.exists():
+        console.print(f"[red]Database not found. Run 'hangar publish' first.[/red]")
+        raise typer.Exit(code=1)
+    
+    try:
+        conn = duckdb.connect(str(database), read_only=True)
+        
+        # Build query
+        query = """
+        SELECT 
+            a.n_number,
+            a.maker,
+            a.model,
+            a.year_mfr,
+            a.reg_status,
+            o.owner_name,
+            o.city,
+            o.state
+        FROM aircraft_decoded a
+        JOIN owners_clean o ON a.n_number = o.n_number
+        WHERE LOWER(o.owner_name) LIKE LOWER(?)
+        """
+        
+        params = [f"%{owner}%"]
+        
+        # Add state filter if provided
+        if state:
+            query += " AND UPPER(o.state) = UPPER(?)"
+            params.append(state)
+        
+        query += " ORDER BY a.n_number"
+        
+        if limit > 0:
+            query += f" LIMIT {limit}"
+        
+        result = conn.execute(query, params).fetchdf()
+        
+        if len(result) == 0:
+            console.print(f"[yellow]No aircraft found for owner: {owner}[/yellow]")
+            if state:
+                console.print(f"[yellow](filtered by state: {state})[/yellow]")
+            conn.close()
+            return
+        
+        # Show summary
+        console.print(f"\n[bold cyan]Fleet Summary: {owner}[/bold cyan]\n")
+        
+        from rich.table import Table
+        summary = Table(show_header=False, box=None)
+        summary.add_column("Metric", style="cyan")
+        summary.add_column("Value", style="white")
+        
+        summary.add_row("Total Aircraft", str(len(result)))
+        summary.add_row("Owner Name", result['owner_name'].iloc[0] if len(result) > 0 else "N/A")
+        
+        # Count by status
+        status_counts = result['reg_status'].value_counts()
+        if 'Valid' in status_counts:
+            summary.add_row("Valid Registrations", str(status_counts['Valid']))
+        
+        # Unique makers
+        unique_makers = result[result['maker'].notna()]['maker'].nunique()
+        if unique_makers > 0:
+            summary.add_row("Manufacturers", str(unique_makers))
+        
+        console.print(summary)
+        console.print()
+        
+        # Show aircraft list (limited for display)
+        console.print(f"[bold]Aircraft List[/bold]\n")
+        
+        from rich.table import Table
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("N-Number")
+        table.add_column("Make & Model")
+        table.add_column("Year")
+        table.add_column("Status")
+        table.add_column("Location")
+        
+        display_limit = 50
+        for idx, row in result.head(display_limit).iterrows():
+            n_num = f"N{row['n_number']}" if pd.notna(row['n_number']) else ""
+            
+            make_model = []
+            if pd.notna(row['maker']) and row['maker']:
+                make_model.append(str(row['maker']))
+            if pd.notna(row['model']) and row['model']:
+                make_model.append(str(row['model']))
+            make_model_str = " ".join(make_model) if make_model else ""
+            
+            year = str(int(row['year_mfr'])) if pd.notna(row['year_mfr']) else ""
+            status = str(row['reg_status']) if pd.notna(row['reg_status']) else ""
+            
+            location = []
+            if pd.notna(row['city']) and row['city']:
+                location.append(str(row['city']))
+            if pd.notna(row['state']) and row['state']:
+                location.append(str(row['state']))
+            location_str = ", ".join(location) if location else ""
+            
+            table.add_row(n_num, make_model_str, year, status, location_str)
+        
+        console.print(table)
+        
+        if len(result) > display_limit:
+            console.print(f"\n[dim]Showing first {display_limit} of {len(result)} aircraft[/dim]")
+        
+        console.print(f"\n[dim]{len(result)} aircraft found[/dim]")
+        
+        # Export if requested
+        if export:
+            result_export = result.copy()
+            # Add N prefix for export
+            result_export['n_number'] = 'N' + result_export['n_number'].astype(str)
+            result_export.to_csv(export, index=False)
+            console.print(f"\n[green]✓ Exported to {export}[/green]")
+        
+        console.print()
+        conn.close()
+        
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def version():
     """Show hangarbay version."""
     from hangarbay import __version__
