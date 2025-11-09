@@ -11,6 +11,8 @@ import pyarrow.parquet as pq
 from rich.console import Console
 
 console = Console()
+# Global quiet flag
+_quiet = False
 
 
 def create_duckdb(publish_dir: Path, duckdb_path: Path) -> None:
@@ -21,7 +23,7 @@ def create_duckdb(publish_dir: Path, duckdb_path: Path) -> None:
         publish_dir: Directory containing Parquet files
         duckdb_path: Path for the DuckDB database file
     """
-    console.print(f"[cyan]Creating DuckDB at {duckdb_path}...[/cyan]")
+    if not _quiet: console.print(f"[cyan]Creating DuckDB at {duckdb_path}...[/cyan]")
     
     # Remove existing database
     if duckdb_path.exists():
@@ -36,10 +38,10 @@ def create_duckdb(publish_dir: Path, duckdb_path: Path) -> None:
     for table_name in tables:
         parquet_file = publish_dir / f"{table_name}.parquet"
         if not parquet_file.exists():
-            console.print(f"[yellow]Warning: {parquet_file} not found, skipping[/yellow]")
+            if not _quiet: console.print(f"[yellow]Warning: {parquet_file} not found, skipping[/yellow]")
             continue
         
-        console.print(f"[cyan]Loading {table_name}...[/cyan]")
+        if not _quiet: console.print(f"[cyan]Loading {table_name}...[/cyan]")
         
         # Create table from Parquet
         conn.execute(f"""
@@ -48,10 +50,10 @@ def create_duckdb(publish_dir: Path, duckdb_path: Path) -> None:
         """)
         
         row_count = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
-        console.print(f"[green]✓ Loaded {table_name}: {row_count:,} rows[/green]")
+        if not _quiet: console.print(f"[green]✓ Loaded {table_name}: {row_count:,} rows[/green]")
     
     # Create owners_summary materialized view
-    console.print(f"[cyan]Creating owners_summary view...[/cyan]")
+    if not _quiet: console.print(f"[cyan]Creating owners_summary view...[/cyan]")
     
     conn.execute("""
         CREATE TABLE owners_summary AS
@@ -65,10 +67,10 @@ def create_duckdb(publish_dir: Path, duckdb_path: Path) -> None:
     """)
     
     summary_count = conn.execute("SELECT COUNT(*) FROM owners_summary").fetchone()[0]
-    console.print(f"[green]✓ Created owners_summary: {summary_count:,} rows[/green]")
+    if not _quiet: console.print(f"[green]✓ Created owners_summary: {summary_count:,} rows[/green]")
     
     # Create reference/lookup tables for code decoding
-    console.print(f"[cyan]Creating reference tables...[/cyan]")
+    if not _quiet: console.print(f"[cyan]Creating reference tables...[/cyan]")
     
     conn.execute("""
         CREATE TABLE status_codes AS
@@ -146,10 +148,10 @@ def create_duckdb(publish_dir: Path, duckdb_path: Path) -> None:
         ) AS t(code, description)
     """)
     
-    console.print(f"[green]✓ Created reference tables[/green]")
+    if not _quiet: console.print(f"[green]✓ Created reference tables[/green]")
     
     # Create decoded views for convenience
-    console.print(f"[cyan]Creating decoded views...[/cyan]")
+    if not _quiet: console.print(f"[cyan]Creating decoded views...[/cyan]")
     
     conn.execute("""
         CREATE VIEW aircraft_decoded AS
@@ -191,10 +193,10 @@ def create_duckdb(publish_dir: Path, duckdb_path: Path) -> None:
         LEFT JOIN owner_types ot ON o.owner_type = ot.code
     """)
     
-    console.print(f"[green]✓ Created decoded views[/green]")
+    if not _quiet: console.print(f"[green]✓ Created decoded views[/green]")
     
     # Create some useful indexes
-    console.print(f"[cyan]Creating indexes...[/cyan]")
+    if not _quiet: console.print(f"[cyan]Creating indexes...[/cyan]")
     
     # Index on n_number for fast lookups
     conn.execute("CREATE INDEX idx_aircraft_n_number ON aircraft(n_number)")
@@ -206,10 +208,10 @@ def create_duckdb(publish_dir: Path, duckdb_path: Path) -> None:
     conn.execute("CREATE INDEX idx_aircraft_mfr_mdl_code ON aircraft(mfr_mdl_code)")
     conn.execute("CREATE INDEX idx_aircraft_engine_code ON aircraft(engine_code)")
     
-    console.print(f"[green]✓ Created indexes[/green]")
+    if not _quiet: console.print(f"[green]✓ Created indexes[/green]")
     
     # Show some stats
-    console.print(f"\n[cyan]Database statistics:[/cyan]")
+    if not _quiet: console.print(f"\n[cyan]Database statistics:[/cyan]")
     stats = conn.execute("""
         SELECT 
             table_name,
@@ -220,10 +222,10 @@ def create_duckdb(publish_dir: Path, duckdb_path: Path) -> None:
     """).fetchall()
     
     for table, count in stats:
-        console.print(f"  {table}: {count:,} rows")
+        if not _quiet: console.print(f"  {table}: {count:,} rows")
     
     conn.close()
-    console.print(f"[green]✓ DuckDB created: {duckdb_path}[/green]")
+    if not _quiet: console.print(f"[green]✓ DuckDB created: {duckdb_path}[/green]")
 
 
 def create_sqlite_fts(publish_dir: Path, sqlite_path: Path) -> None:
@@ -234,7 +236,7 @@ def create_sqlite_fts(publish_dir: Path, sqlite_path: Path) -> None:
         publish_dir: Directory containing Parquet files
         sqlite_path: Path for the SQLite database file
     """
-    console.print(f"\n[cyan]Creating SQLite FTS at {sqlite_path}...[/cyan]")
+    if not _quiet: console.print(f"\n[cyan]Creating SQLite FTS at {sqlite_path}...[/cyan]")
     
     # Remove existing database
     if sqlite_path.exists():
@@ -258,7 +260,7 @@ def create_sqlite_fts(publish_dir: Path, sqlite_path: Path) -> None:
     """)
     
     # Read owners from Parquet
-    console.print("[cyan]Loading owners data...[/cyan]")
+    if not _quiet: console.print("[cyan]Loading owners data...[/cyan]")
     owners_table = pq.read_table(publish_dir / "owners.parquet")
     owners_df = owners_table.to_pandas()
     
@@ -272,10 +274,10 @@ def create_sqlite_fts(publish_dir: Path, sqlite_path: Path) -> None:
         INSERT INTO owners VALUES (?, ?, ?, ?, ?, ?, ?)
     """, owners_data)
     
-    console.print(f"[green]✓ Inserted {len(owners_data):,} owner records[/green]")
+    if not _quiet: console.print(f"[green]✓ Inserted {len(owners_data):,} owner records[/green]")
     
     # Create FTS5 virtual table
-    console.print("[cyan]Creating FTS5 index...[/cyan]")
+    if not _quiet: console.print("[cyan]Creating FTS5 index...[/cyan]")
     
     cursor.execute("""
         CREATE VIRTUAL TABLE owners_fts USING fts5(
@@ -295,7 +297,7 @@ def create_sqlite_fts(publish_dir: Path, sqlite_path: Path) -> None:
         FROM owners
     """)
     
-    console.print(f"[green]✓ Created FTS5 index[/green]")
+    if not _quiet: console.print(f"[green]✓ Created FTS5 index[/green]")
     
     # Create indexes on regular columns for filters
     cursor.execute("CREATE INDEX idx_owners_n_number ON owners(n_number)")
@@ -304,12 +306,13 @@ def create_sqlite_fts(publish_dir: Path, sqlite_path: Path) -> None:
     conn.commit()
     conn.close()
     
-    console.print(f"[green]✓ SQLite FTS created: {sqlite_path}[/green]")
+    if not _quiet: console.print(f"[green]✓ SQLite FTS created: {sqlite_path}[/green]")
 
 
 def publish(
     data_root: Path = Path("data"),
     snapshot_date: Optional[str] = None,
+    quiet: bool = False,
 ) -> Path:
     """
     Publish normalized Parquet to DuckDB and SQLite FTS.
@@ -321,13 +324,15 @@ def publish(
     Returns:
         Path to publish directory
     """
+    global _quiet
+    _quiet = quiet
     publish_dir = data_root / "publish"
     
     if not publish_dir.exists() or not (publish_dir / "aircraft.parquet").exists():
-        console.print("[red]No normalized data found. Run 'hangar normalize' first.[/red]")
+        if not _quiet: console.print("[red]No normalized data found. Run 'hangar normalize' first.[/red]")
         raise FileNotFoundError("No Parquet files found in publish directory")
     
-    console.print(f"\n[bold cyan]Publishing data from {publish_dir}[/bold cyan]\n")
+    if not _quiet: console.print(f"\n[bold cyan]Publishing data from {publish_dir}[/bold cyan]\n")
     
     # Create DuckDB
     duckdb_path = publish_dir / "registry.duckdb"
@@ -338,7 +343,7 @@ def publish(
     create_sqlite_fts(publish_dir, sqlite_path)
     
     # Write metadata
-    console.print(f"\n[cyan]Writing publish metadata...[/cyan]")
+    if not _quiet: console.print(f"\n[cyan]Writing publish metadata...[/cyan]")
     
     # Get snapshot date from normalize metadata if available
     if snapshot_date is None:
@@ -363,16 +368,16 @@ def publish(
     with open(meta_dir / "publish.json", "w") as f:
         json.dump(metadata, f, indent=2)
     
-    console.print(f"[green]✓ Wrote metadata to {meta_dir / 'publish.json'}[/green]")
+    if not _quiet: console.print(f"[green]✓ Wrote metadata to {meta_dir / 'publish.json'}[/green]")
     
-    console.print(f"\n[bold green]✓ Publish complete![/bold green]")
-    console.print(f"[dim]DuckDB: {duckdb_path}[/dim]")
-    console.print(f"[dim]SQLite: {sqlite_path}[/dim]\n")
+    if not _quiet: console.print(f"\n[bold green]✓ Publish complete![/bold green]")
+    if not _quiet: console.print(f"[dim]DuckDB: {duckdb_path}[/dim]")
+    if not _quiet: console.print(f"[dim]SQLite: {sqlite_path}[/dim]\n")
     
     # Show example queries
-    console.print("[cyan]Try these queries:[/cyan]")
-    console.print("  hangar sql \"SELECT COUNT(*) FROM aircraft\"")
-    console.print("  hangar sql \"SELECT maker, COUNT(*) FROM aircraft JOIN aircraft_make_model USING(mfr_mdl_code) GROUP BY 1 ORDER BY 2 DESC LIMIT 10\"")
+    if not _quiet: console.print("[cyan]Try these queries:[/cyan]")
+    if not _quiet: console.print("  hangar sql \"SELECT COUNT(*) FROM aircraft\"")
+    if not _quiet: console.print("  hangar sql \"SELECT maker, COUNT(*) FROM aircraft JOIN aircraft_make_model USING(mfr_mdl_code) GROUP BY 1 ORDER BY 2 DESC LIMIT 10\"")
     
     return publish_dir
 

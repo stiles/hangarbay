@@ -11,6 +11,8 @@ import pyarrow.compute as pc
 import xxhash
 from rich.console import Console
 
+# Global quiet flag
+_quiet = False
 from hangarbay.address import (
     clean_text,
     combine_address,
@@ -63,7 +65,7 @@ def parse_master_file(master_path: Path) -> tuple[pa.Table, pa.Table, pa.Table]:
     Returns:
         Tuple of (aircraft_table, registrations_table, owners_table)
     """
-    console.print(f"[cyan]Parsing {master_path.name}...[/cyan]")
+    if not _quiet: console.print(f"[cyan]Parsing {master_path.name}...[/cyan]")
     
     # Read the CSV with PyArrow
     # FAA files are comma-delimited with header row
@@ -88,7 +90,7 @@ def parse_master_file(master_path: Path) -> tuple[pa.Table, pa.Table, pa.Table]:
         convert_options=convert_options,
     )
     
-    console.print(f"[green]✓ Read {len(table)} rows from MASTER.txt[/green]")
+    if not _quiet: console.print(f"[green]✓ Read {len(table)} rows from MASTER.txt[/green]")
     
     # Convert to pandas for easier manipulation (we'll convert back to Arrow)
     df = table.to_pandas()
@@ -97,7 +99,7 @@ def parse_master_file(master_path: Path) -> tuple[pa.Table, pa.Table, pa.Table]:
     df.columns = df.columns.str.strip()
     
     # Build aircraft table (denormalized view with current registration facts)
-    console.print("[cyan]Building aircraft table...[/cyan]")
+    if not _quiet: console.print("[cyan]Building aircraft table...[/cyan]")
     aircraft_df = df[[
         "N-NUMBER", "SERIAL NUMBER", "MFR MDL CODE", "ENG MFR MDL",
         "YEAR MFR", "TYPE AIRCRAFT", 
@@ -146,10 +148,10 @@ def parse_master_file(master_path: Path) -> tuple[pa.Table, pa.Table, pa.Table]:
     aircraft_table = pa.Table.from_pandas(aircraft_df, preserve_index=False)
     aircraft_table = aircraft_table.cast(aircraft_schema, safe=False)
     
-    console.print(f"[green]✓ Built aircraft table: {len(aircraft_table)} rows[/green]")
+    if not _quiet: console.print(f"[green]✓ Built aircraft table: {len(aircraft_table)} rows[/green]")
     
     # Build registrations table (canonical registration state)
-    console.print("[cyan]Building registrations table...[/cyan]")
+    if not _quiet: console.print("[cyan]Building registrations table...[/cyan]")
     registrations_df = df[[
         "N-NUMBER", "CERTIFICATION", "STATUS CODE", 
         "LAST ACTION DATE", "EXPIRATION DATE"
@@ -170,10 +172,10 @@ def parse_master_file(master_path: Path) -> tuple[pa.Table, pa.Table, pa.Table]:
     registrations_table = pa.Table.from_pandas(registrations_df, preserve_index=False)
     registrations_table = registrations_table.cast(registrations_schema, safe=False)
     
-    console.print(f"[green]✓ Built registrations table: {len(registrations_table)} rows[/green]")
+    if not _quiet: console.print(f"[green]✓ Built registrations table: {len(registrations_table)} rows[/green]")
     
     # Build owners table (with address standardization)
-    console.print("[cyan]Building owners table...[/cyan]")
+    if not _quiet: console.print("[cyan]Building owners table...[/cyan]")
     
     owners_list = []
     for idx, row in df.iterrows():
@@ -228,7 +230,7 @@ def parse_master_file(master_path: Path) -> tuple[pa.Table, pa.Table, pa.Table]:
     owners_table = pa.Table.from_pandas(owners_df, preserve_index=False)
     owners_table = owners_table.cast(owners_schema, safe=False)
     
-    console.print(f"[green]✓ Built owners table: {len(owners_table)} rows[/green]")
+    if not _quiet: console.print(f"[green]✓ Built owners table: {len(owners_table)} rows[/green]")
     
     return aircraft_table, registrations_table, owners_table
 
@@ -243,7 +245,7 @@ def parse_acftref_file(acftref_path: Path) -> pa.Table:
     Returns:
         PyArrow table
     """
-    console.print(f"[cyan]Parsing {acftref_path.name}...[/cyan]")
+    if not _quiet: console.print(f"[cyan]Parsing {acftref_path.name}...[/cyan]")
     
     read_options = csv.ReadOptions(skip_rows=0, column_names=None)
     parse_options = csv.ParseOptions(delimiter=",")
@@ -274,7 +276,7 @@ def parse_acftref_file(acftref_path: Path) -> pa.Table:
     acft_table = pa.Table.from_pandas(acft_df, preserve_index=False)
     acft_table = acft_table.cast(aircraft_make_model_schema, safe=False)
     
-    console.print(f"[green]✓ Built aircraft_make_model table: {len(acft_table)} rows[/green]")
+    if not _quiet: console.print(f"[green]✓ Built aircraft_make_model table: {len(acft_table)} rows[/green]")
     
     return acft_table
 
@@ -289,7 +291,7 @@ def parse_engine_file(engine_path: Path) -> pa.Table:
     Returns:
         PyArrow table
     """
-    console.print(f"[cyan]Parsing {engine_path.name}...[/cyan]")
+    if not _quiet: console.print(f"[cyan]Parsing {engine_path.name}...[/cyan]")
     
     read_options = csv.ReadOptions(skip_rows=0, column_names=None)
     parse_options = csv.ParseOptions(delimiter=",")
@@ -320,7 +322,7 @@ def parse_engine_file(engine_path: Path) -> pa.Table:
     engine_table = pa.Table.from_pandas(engine_df, preserve_index=False)
     engine_table = engine_table.cast(engines_schema, safe=False)
     
-    console.print(f"[green]✓ Built engines table: {len(engine_table)} rows[/green]")
+    if not _quiet: console.print(f"[green]✓ Built engines table: {len(engine_table)} rows[/green]")
     
     return engine_table
 
@@ -328,6 +330,7 @@ def parse_engine_file(engine_path: Path) -> pa.Table:
 def normalize(
     data_root: Path = Path("data"),
     snapshot_date: Optional[str] = None,
+    quiet: bool = False,
 ) -> Path:
     """
     Normalize raw FAA files to typed Parquet tables.
@@ -339,26 +342,28 @@ def normalize(
     Returns:
         Path to publish directory
     """
+    global _quiet
+    _quiet = quiet
     if snapshot_date is None:
         # Find the latest snapshot
         raw_dir = data_root / "raw"
         if not raw_dir.exists():
-            console.print("[red]No raw data found. Run 'hangar fetch' first.[/red]")
+            if not _quiet: console.print("[red]No raw data found. Run 'hangar fetch' first.[/red]")
             raise FileNotFoundError("No raw data directory")
         
         snapshots = sorted([d.name for d in raw_dir.iterdir() if d.is_dir()])
         if not snapshots:
-            console.print("[red]No snapshots found. Run 'hangar fetch' first.[/red]")
+            if not _quiet: console.print("[red]No snapshots found. Run 'hangar fetch' first.[/red]")
             raise FileNotFoundError("No snapshots found")
         
         snapshot_date = snapshots[-1]
     
     raw_snapshot = data_root / "raw" / snapshot_date
     if not raw_snapshot.exists():
-        console.print(f"[red]Snapshot {snapshot_date} not found[/red]")
+        if not _quiet: console.print(f"[red]Snapshot {snapshot_date} not found[/red]")
         raise FileNotFoundError(f"Snapshot directory not found: {raw_snapshot}")
     
-    console.print(f"\n[bold cyan]Normalizing snapshot: {snapshot_date}[/bold cyan]\n")
+    if not _quiet: console.print(f"\n[bold cyan]Normalizing snapshot: {snapshot_date}[/bold cyan]\n")
     
     # Paths
     master_path = raw_snapshot / "MASTER.txt"
@@ -375,24 +380,24 @@ def normalize(
     engines_table = parse_engine_file(engine_path)
     
     # Write Parquet files
-    console.print(f"\n[cyan]Writing Parquet files to {publish_dir}...[/cyan]")
+    if not _quiet: console.print(f"\n[cyan]Writing Parquet files to {publish_dir}...[/cyan]")
     
     import pyarrow.parquet as pq
     
     pq.write_table(aircraft_table, publish_dir / "aircraft.parquet")
-    console.print("[green]✓ Wrote aircraft.parquet[/green]")
+    if not _quiet: console.print("[green]✓ Wrote aircraft.parquet[/green]")
     
     pq.write_table(registrations_table, publish_dir / "registrations.parquet")
-    console.print("[green]✓ Wrote registrations.parquet[/green]")
+    if not _quiet: console.print("[green]✓ Wrote registrations.parquet[/green]")
     
     pq.write_table(owners_table, publish_dir / "owners.parquet")
-    console.print("[green]✓ Wrote owners.parquet[/green]")
+    if not _quiet: console.print("[green]✓ Wrote owners.parquet[/green]")
     
     pq.write_table(acft_ref_table, publish_dir / "aircraft_make_model.parquet")
-    console.print("[green]✓ Wrote aircraft_make_model.parquet[/green]")
+    if not _quiet: console.print("[green]✓ Wrote aircraft_make_model.parquet[/green]")
     
     pq.write_table(engines_table, publish_dir / "engines.parquet")
-    console.print("[green]✓ Wrote engines.parquet[/green]")
+    if not _quiet: console.print("[green]✓ Wrote engines.parquet[/green]")
     
     # Write metadata
     metadata = {
@@ -413,10 +418,10 @@ def normalize(
     with open(meta_dir / "normalize.json", "w") as f:
         json.dump(metadata, f, indent=2)
     
-    console.print(f"[green]✓ Wrote metadata to {meta_dir / 'normalize.json'}[/green]")
+    if not _quiet: console.print(f"[green]✓ Wrote metadata to {meta_dir / 'normalize.json'}[/green]")
     
-    console.print(f"\n[bold green]✓ Normalization complete![/bold green]")
-    console.print(f"[dim]Published to: {publish_dir}[/dim]\n")
+    if not _quiet: console.print(f"\n[bold green]✓ Normalization complete![/bold green]")
+    if not _quiet: console.print(f"[dim]Published to: {publish_dir}[/dim]\n")
     
     return publish_dir
 

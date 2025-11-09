@@ -10,7 +10,10 @@ Example usage:
     >>> fleet = hb.fleet("United Airlines")
 """
 import json
+import sys
+from contextlib import contextmanager
 from datetime import datetime, timedelta
+from io import StringIO
 from pathlib import Path
 from typing import Optional
 
@@ -24,6 +27,34 @@ from pipelines import fetch, normalize, publish
 console = Console()
 
 
+@contextmanager
+def _suppress_output():
+    """Temporarily suppress stdout and stderr for quiet mode."""
+    import os
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    
+    # Also suppress file descriptor output (for Rich/console libraries)
+    old_stdout_fd = os.dup(1)
+    old_stderr_fd = os.dup(2)
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    
+    try:
+        sys.stdout = StringIO()
+        sys.stderr = StringIO()
+        os.dup2(devnull, 1)
+        os.dup2(devnull, 2)
+        yield
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+        os.dup2(old_stdout_fd, 1)
+        os.dup2(old_stderr_fd, 2)
+        os.close(devnull)
+        os.close(old_stdout_fd)
+        os.close(old_stderr_fd)
+
+
 def _check_data_exists() -> bool:
     """Check if data has been downloaded and processed."""
     data_dir = config.get_data_dir()
@@ -34,7 +65,7 @@ def _check_data_exists() -> bool:
 def _get_data_age_days() -> Optional[int]:
     """Get the age of the current data in days."""
     data_dir = config.get_data_dir()
-    normalize_meta = data_dir / "_meta" / "normalize.json"
+    normalize_meta = data_dir / "publish" / "_meta" / "normalize.json"
     
     if not normalize_meta.exists():
         return None
@@ -70,7 +101,7 @@ def _ensure_data():
         load_data(force=True, skip_age_check=True)
 
 
-def load_data(force: bool = False, skip_age_check: bool = False) -> None:
+def load_data(force: bool = False, skip_age_check: bool = False, quiet: bool = False) -> None:
     """Download and process FAA aircraft registry data.
     
     This function runs the complete pipeline: fetch -> normalize -> publish.
@@ -79,10 +110,12 @@ def load_data(force: bool = False, skip_age_check: bool = False) -> None:
     Args:
         force: If True, re-download even if data exists
         skip_age_check: If True, skip warning about stale data
+        quiet: If True, suppress progress output (useful for notebooks)
     
     Example:
         >>> import hangarbay as hb
         >>> hb.load_data()
+        >>> hb.load_data(quiet=True)  # For notebooks
     """
     data_dir = config.ensure_data_dir()
     
@@ -90,25 +123,31 @@ def load_data(force: bool = False, skip_age_check: bool = False) -> None:
     if not force and _check_data_exists():
         age_days = _get_data_age_days()
         if age_days and age_days <= 30:
-            if not skip_age_check:
+            if not skip_age_check and not quiet:
                 console.print(f"[green]✓ Data is up-to-date ({age_days} days old)[/green]")
             return
-        elif not skip_age_check:
+        elif not skip_age_check and not quiet:
             console.print(f"[yellow]Data is {age_days} days old. Updating...[/yellow]")
     
     # Run the pipeline
-    console.print(f"[cyan]Installing data to: {data_dir}[/cyan]\n")
+    if not quiet:
+        console.print(f"[cyan]Installing data to: {data_dir}[/cyan]\n")
+        console.print("[bold]Step 1/3:[/bold] Fetching data from FAA...")
     
-    console.print("[bold]Step 1/3:[/bold] Fetching data from FAA...")
-    fetch.fetch(data_dir)
+    fetch.fetch(data_dir, quiet=quiet)
     
-    console.print("\n[bold]Step 2/3:[/bold] Normalizing and cleaning...")
-    normalize.normalize(data_dir)
+    if not quiet:
+        console.print("\n[bold]Step 2/3:[/bold] Normalizing and cleaning...")
     
-    console.print("\n[bold]Step 3/3:[/bold] Building databases...")
-    publish.publish(data_dir)
+    normalize.normalize(data_dir, quiet=quiet)
     
-    console.print("\n[green]✓ Setup complete! Ready to query.[/green]")
+    if not quiet:
+        console.print("\n[bold]Step 3/3:[/bold] Building databases...")
+    
+    publish.publish(data_dir, quiet=quiet)
+    
+    if not quiet:
+        console.print("\n[green]✓ Setup complete! Ready to query.[/green]")
 
 
 def search(n_number: str, skip_age_check: bool = False) -> pd.DataFrame:
@@ -316,7 +355,7 @@ def status() -> dict:
         }
     
     data_dir = config.get_data_dir()
-    normalize_meta = data_dir / "_meta" / "normalize.json"
+    normalize_meta = data_dir / "publish" / "_meta" / "normalize.json"
     
     with open(normalize_meta) as f:
         meta = json.load(f)
@@ -324,14 +363,17 @@ def status() -> dict:
     snapshot_date = datetime.fromisoformat(meta["snapshot_date"])
     age_days = (datetime.now() - snapshot_date).days
     
+    # Extract row counts from nested structure
+    row_counts = meta.get("row_counts", {})
+    
     return {
         "data_exists": True,
         "data_dir": str(data_dir),
         "snapshot_date": meta["snapshot_date"],
         "age_days": age_days,
         "is_stale": age_days > 30,
-        "aircraft_count": meta.get("aircraft_rows", "Unknown"),
-        "owners_count": meta.get("owners_rows", "Unknown"),
+        "aircraft_count": row_counts.get("aircraft", "Unknown"),
+        "owners_count": row_counts.get("owners", "Unknown"),
     }
 
 

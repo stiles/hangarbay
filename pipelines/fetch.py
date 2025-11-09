@@ -12,6 +12,9 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 console = Console()
 
+# Global quiet flag
+_quiet = False
+
 # FAA ReleasableAircraft download URL (single zip file containing all data)
 FAA_ZIP_URL = "https://registry.faa.gov/database/ReleasableAircraft.zip"
 
@@ -46,7 +49,7 @@ def download_file(url: str, dest_path: Path, retries: int = 3) -> bool:
     
     for attempt in range(retries):
         try:
-            console.print(f"[cyan]Downloading {dest_path.name}...[/cyan]")
+            if not _quiet: console.print(f"[cyan]Downloading {dest_path.name}...[/cyan]")
             response = requests.get(url, stream=True, timeout=180, headers=headers)
             response.raise_for_status()
             
@@ -62,13 +65,13 @@ def download_file(url: str, dest_path: Path, retries: int = 3) -> bool:
                             f.write(chunk)
                             downloaded += len(chunk)
             
-            console.print(f"[green]✓ Downloaded {dest_path.name} ({total_size:,} bytes)[/green]")
+            if not _quiet: console.print(f"[green]✓ Downloaded {dest_path.name} ({total_size:,} bytes)[/green]")
             return True
             
         except Exception as e:
-            console.print(f"[yellow]Attempt {attempt + 1}/{retries} failed: {e}[/yellow]")
+            if not _quiet: console.print(f"[yellow]Attempt {attempt + 1}/{retries} failed: {e}[/yellow]")
             if attempt == retries - 1:
-                console.print(f"[red]✗ Failed to download {dest_path.name}[/red]")
+                if not _quiet: console.print(f"[red]✗ Failed to download {dest_path.name}[/red]")
                 return False
     
     return False
@@ -95,12 +98,13 @@ def create_manifest(
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
     
-    console.print(f"[green]✓ Created manifest at {manifest_path}[/green]")
+    if not _quiet: console.print(f"[green]✓ Created manifest at {manifest_path}[/green]")
 
 
 def fetch(
     data_root: Path = Path("data"),
     snapshot_date: Optional[str] = None,
+    quiet: bool = False,
 ) -> Path:
     """
     Fetch FAA registry files and create a dated snapshot with manifest.
@@ -108,17 +112,22 @@ def fetch(
     Args:
         data_root: Root data directory (default: data/)
         snapshot_date: Optional explicit date (default: today YYYY-MM-DD)
+        quiet: Suppress console output
     
     Returns:
         Path to the created raw snapshot directory
     """
+    global _quiet
+    _quiet = quiet
+    
     if snapshot_date is None:
         snapshot_date = datetime.now().strftime("%Y-%m-%d")
     
     raw_dir = data_root / "raw" / snapshot_date
     raw_dir.mkdir(parents=True, exist_ok=True)
     
-    console.print(f"\n[bold cyan]Fetching FAA registry data for {snapshot_date}[/bold cyan]\n")
+    if not _quiet:
+        if not _quiet: console.print(f"\n[bold cyan]Fetching FAA registry data for {snapshot_date}[/bold cyan]\n")
     
     # Download the ZIP file
     zip_path = raw_dir / "ReleasableAircraft.zip"
@@ -126,13 +135,13 @@ def fetch(
     if not zip_path.exists():
         success = download_file(FAA_ZIP_URL, zip_path)
         if not success:
-            console.print(f"[red]Failed to download FAA zip file, aborting[/red]")
+            if not _quiet: console.print(f"[red]Failed to download FAA zip file, aborting[/red]")
             return raw_dir
     else:
-        console.print(f"[yellow]ZIP file already exists, skipping download[/yellow]")
+        if not _quiet: console.print(f"[yellow]ZIP file already exists, skipping download[/yellow]")
     
     # Extract desired files from the ZIP
-    console.print(f"[cyan]Extracting files from ZIP...[/cyan]")
+    if not _quiet: console.print(f"[cyan]Extracting files from ZIP...[/cyan]")
     files_info = {}
     
     try:
@@ -141,11 +150,11 @@ def fetch(
                 dest_path = raw_dir / filename
                 
                 if not dest_path.exists():
-                    console.print(f"[cyan]Extracting {filename}...[/cyan]")
+                    if not _quiet: console.print(f"[cyan]Extracting {filename}...[/cyan]")
                     zf.extract(filename, raw_dir)
-                    console.print(f"[green]✓ Extracted {filename}[/green]")
+                    if not _quiet: console.print(f"[green]✓ Extracted {filename}[/green]")
                 else:
-                    console.print(f"[yellow]{filename} already extracted[/yellow]")
+                    if not _quiet: console.print(f"[yellow]{filename} already extracted[/yellow]")
                 
                 # Compute hash and record metadata
                 sha256 = compute_sha256(dest_path)
@@ -160,13 +169,13 @@ def fetch(
                     "size_bytes": file_size,
                 }
                 
-                console.print(f"[dim]  SHA256: {sha256}[/dim]")
+                if not _quiet: console.print(f"[dim]  SHA256: {sha256}[/dim]")
     
     except zipfile.BadZipFile:
-        console.print(f"[red]Error: Downloaded file is not a valid ZIP file[/red]")
+        if not _quiet: console.print(f"[red]Error: Downloaded file is not a valid ZIP file[/red]")
         return raw_dir
     except KeyError as e:
-        console.print(f"[red]Error: File {e} not found in ZIP archive[/red]")
+        if not _quiet: console.print(f"[red]Error: File {e} not found in ZIP archive[/red]")
         return raw_dir
     
     # Check for previous snapshot
@@ -180,8 +189,8 @@ def fetch(
     # Create manifest
     create_manifest(raw_dir, files_info, snapshot_date, previous_snapshot)
     
-    console.print(f"\n[bold green]✓ Fetch complete![/bold green]")
-    console.print(f"[dim]Snapshot saved to: {raw_dir}[/dim]\n")
+    if not _quiet: console.print(f"\n[bold green]✓ Fetch complete![/bold green]")
+    if not _quiet: console.print(f"[dim]Snapshot saved to: {raw_dir}[/dim]\n")
     
     return raw_dir
 
