@@ -9,7 +9,7 @@ Example notebooks demonstrating the Hangarbay Python API.
 A comprehensive example showing how to:
 - Load FAA aircraft registry data
 - Search for fleets using wildcard patterns (`LAPD|Los Angeles Police`)
-- Analyze aircraft by manufacturer, year, and status
+- Analyze aircraft by manufacturer, year and status
 - Look up individual aircraft details
 - Export data for further analysis
 

@@ -4,7 +4,7 @@
 
 Hangarbay downloads, normalizes and indexes the complete [FAA aircraft registry](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download) so you can skip straight to analysis. No more hunting for ZIP files, decoding cryptic codes, or joining fragmented tables. One command gets you 307,000+ aircraft registrations, owners and specifications ready to query with SQL or pandas.
 
-Built for researchers, data journalists, and aviation analysts who need reliable, repeatable workflows.
+Built for researchers, data journalists and aviation analysts who need reliable, repeatable workflows.
 
 ## Quick start
 
@@ -50,7 +50,7 @@ cd hangarbay
 pip install -e ".[dev]"
 
 # Run the full pipeline (~2 minutes)
-hangar update     # Download, normalize, and publish (all-in-one)
+hangar update     # Download, normalize and publish (all-in-one)
 
 # Or run steps individually
 hangar fetch      # Download FAA data

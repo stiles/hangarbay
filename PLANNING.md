@@ -262,7 +262,7 @@ hangarbay/
 - Build registry.duckdb + owners.sqlite (FTS)
 - Materialize `owners_summary`
 - CLI: search and sql (read-only)
-- Unit tests for schemas, address standardization, and owner_id
+- Unit tests for schemas, address standardization and owner_id
 
 **📋 Remaining (Future):**
 - Integrate DEREG into `registrations` and `aircraft.is_deregistered`

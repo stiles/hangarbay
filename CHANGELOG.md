@@ -111,7 +111,7 @@ SELECT state_std, COUNT(*) FROM owners GROUP BY 1 ORDER BY 2 DESC LIMIT 5;
 
 ### Added
 - **Normalize pipeline** (`pipelines/normalize.py`) ✅
-  - Parses MASTER.txt into aircraft, registrations, and owners tables
+  - Parses MASTER.txt into aircraft, registrations and owners tables
   - Parses ACFTREF.txt into aircraft_make_model table
   - Parses ENGINE.txt into engines table
   - Applies lite address standardization (uppercase, trim, combine, normalize state/ZIP)
@@ -151,7 +151,7 @@ SELECT state_std, COUNT(*) FROM owners GROUP BY 1 ORDER BY 2 DESC LIMIT 5;
 - Fetch pipeline (`pipelines/fetch.py`)
   - Downloads FAA ReleasableAircraft.zip with browser headers to avoid blocking
   - Extracts MASTER.txt, ACFTREF.txt, ENGINE.txt
-  - Creates manifest.json with SHA256 hashes, timestamps, and schema versions
+  - Creates manifest.json with SHA256 hashes, timestamps and schema versions
   - Detects previous snapshots for diff tracking
   - Retry logic with exponential backoff
 - CLI (`hangar`) with Typer and Rich output
