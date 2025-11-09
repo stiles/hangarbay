@@ -24,6 +24,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - 40+ certificate type codes (Standard, Experimental, Light Sport, Restricted, etc.)
 
 ### Added
+- **🐍 Python API for notebooks and scripts:**
+  - `hb.load_data()` - One-command setup (fetch, normalize, publish)
+  - `hb.search(n_number)` - Look up aircraft by N-number
+  - `hb.fleet(owner, state=None, limit=0)` - Find all aircraft owned by person/company
+  - `hb.query(sql)` - Execute custom SQL queries
+  - `hb.get_connection()` - Direct database access for advanced users
+  - `hb.status()` - Check data age and counts
+  - `hb.list_tables()` - Show available tables
+  - `hb.schema(table)` - Show table schema
+  - All functions return pandas DataFrames
+  - Auto-downloads data on first use with helpful messages
+  - Data stored in `~/.hangarbay/data/` by default (configurable with `set_data_dir()`)
 - **New commands:**
   - `hangar fleet <owner>` - Find all aircraft owned by a person or company
     - Case-insensitive search with wildcards (automatic `%term%` wrapping)

@@ -1,10 +1,47 @@
 # Hangarbay
 
-A reproducible workflow for the [FAA aircraft registry](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download). Download raw data, normalize it into typed tables and query with SQL. Fast lookups for individual aircraft, powerful queries for fleet analysis.
+**Stop Googling for FAA data.** Get clean, queryable aircraft registry tables in seconds.
+
+Hangarbay downloads, normalizes and indexes the complete [FAA aircraft registry](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download) so you can skip straight to analysis. No more hunting for ZIP files, decoding cryptic text formats, or joining fragmented tables. One command gets you 307,000+ aircraft registrations, owners, and specifications ready to query with SQL or pandas.
+
+Built for researchers, data journalists, and aviation analysts who need reliable, repeatable workflows.
 
 ## Quick start
 
 **Requirements:** Python 3.9+
+
+### Python API (notebooks & scripts)
+
+```python
+# Install
+pip install hangarbay  # (coming soon to PyPI)
+
+# One-time setup
+import hangarbay as hb
+hb.load_data()  # Downloads & processes FAA data to ~/.hangarbay/data/
+
+# Look up aircraft
+df = hb.search("N221LA")
+
+# Find fleets
+fleet = hb.fleet("United Airlines")
+fleet = hb.fleet("LAPD|Los Angeles Police", state="CA")
+
+# Custom SQL
+df = hb.query("""
+    SELECT maker, COUNT(*) as count
+    FROM aircraft_decoded
+    WHERE year_mfr > 2020
+    GROUP BY maker
+    ORDER BY count DESC
+""")
+
+# Check data age
+info = hb.status()
+print(f"Data is {info['age_days']} days old")
+```
+
+### Command-line interface
 
 ```bash
 # Clone and install
@@ -19,9 +56,6 @@ hangar update     # Download, normalize, and publish (all-in-one)
 hangar fetch      # Download FAA data
 hangar normalize  # Parse to typed Parquet tables
 hangar publish    # Build DuckDB + SQLite FTS indexes
-
-# Or use make
-make all
 
 # Check data status and age
 hangar status
@@ -42,6 +76,7 @@ Hangarbay downloads FAA aircraft registration data, normalizes it into typed tab
 - **SQLite FTS5** for full-text search by owner name or address
 - **Parquet** files for efficient columnar storage
 - **Data lineage tracking** with SHA256 checksums and version metadata
+- **Shared data directory** at `~/.hangarbay/data/` - works from any project or notebook
 
 ## Features
 
@@ -191,10 +226,6 @@ make publish
 # Clean intermediate files
 make clean
 ```
-
-## Design philosophy
-
-Built for researchers and data journalists who need reliable, repeatable analysis. The architecture is simple: download → parse → index → query. No black boxes or vendors. Transparent data flow, efficient storage and fast queries. 
 
 ## License
 
