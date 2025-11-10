@@ -2,7 +2,7 @@
 
 **Stop struggling with FAA registration data.** Get clean, queryable aircraft registry tables in seconds.
 
-Hangarbay downloads, normalizes and indexes the complete [FAA aircraft registry](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download) so you can skip straight to analysis. No more hunting for files to download, or joining fragmented tables, or trying to decoding cryptic lookup relationships. One command gets you 307,000+ aircraft registrations, owners and specifications ready to query with SQL or pandas.
+Hangarbay downloads, normalizes and indexes the complete [FAA aircraft registry](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download) so you can skip straight to analysis. No more hunting for files to download, or joining fragmented tables, or decoding cryptic lookup relationships. One command gets you 307,000+ aircraft registrations, owners and specifications ready to query with SQL or pandas.
 
 This is a tool built for researchers, data journalists and aviation analysts who need fast, reliable and repeatable workflows. 
 
