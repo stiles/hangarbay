@@ -47,7 +47,7 @@ print(f"Data is {info['age_days']} days old")
 # Install
 pip install hangarbay
 
-# Run the full pipeline (~2 minutes)
+# Run the full pipeline (< 1 minute, depending on your connection)
 hangar update     # Download, normalize and publish (in one step)
 
 # Or run steps individually
