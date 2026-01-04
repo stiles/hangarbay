@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-01-04
+
+### Added
+- **Enhanced aircraft search output** ([#1](https://github.com/stiles/hangarbay/issues/1)):
+  - Street address now displayed for registered owner
+  - Mode S Code (transponder hex code) shown for equipped aircraft
+  - Certificate Issue Date added to registration details
+  - ZIP code added to location display
+- New database columns:
+  - `mode_s_code` and `mode_s_code_hex` in aircraft table
+  - `cert_issue_date` in registrations table
+- Updated `aircraft_decoded` view includes new fields
+
+### Changed
+- `hangar search` output now shows more complete owner/aircraft information matching FAA's online lookup
+
 ## [0.4.0] - 2025-11-09
 
 ### Changed
