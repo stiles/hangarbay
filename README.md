@@ -85,6 +85,24 @@ Look up any aircraft registration with decoded status codes and human-readable o
 hangar search N221LA
 ```
 
+```
+Aircraft Registration: N221LA
+
+Owner: LAPD AIR SUPPORT DIVISION
+Address: 555 RAMIREZ ST SPC 475
+Location: LOS ANGELES, CA 90012
+
+  Make & Model:           AIRBUS HELICOPTERS INC AS350B3
+  Year Manufactured:      2014
+  Serial Number:          7900
+  Registration Status:    Valid
+  Certificate Type:       Standard Airworthiness - Normal
+  Certificate Issue:      Jun 15, 2015
+  Status Date:            May 19, 2023
+  Expiration:             Jun 30, 2028
+  Mode S Code:            A1E5B3
+```
+
 ### Fleet search
 Find all aircraft owned by a person or company:
 
@@ -106,21 +124,6 @@ hangar fleet "Boeing" --export boeing_fleet.csv
 
 # Limit results
 hangar fleet "Cessna" --limit 20
-```
-
-```
-Aircraft Registration: N221LA
-
-Owner: LAPD AIR SUPPORT DIVISION
-Location: LOS ANGELES, CA
-
-  Make & Model:           AIRBUS HELICOPTERS INC AS350B3
-  Year Manufactured:      2014
-  Serial Number:          7900
-  Registration Status:    Valid
-  Certificate Type:       Standard Airworthiness - Normal
-  Status Date:            May 19, 2023
-  Expiration:             Jun 30, 2028
 ```
 
 ### SQL queries
