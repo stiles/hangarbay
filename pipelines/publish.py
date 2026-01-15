@@ -313,6 +313,100 @@ def create_sqlite_fts(publish_dir: Path, sqlite_path: Path) -> None:
     if not _quiet: console.print(f"[green]✓ SQLite FTS created: {sqlite_path}[/green]")
 
 
+def _create_consolidated_metadata(
+    data_root: Path,
+    snapshot_date: str,
+    publish_dir: Path,
+    duckdb_path: Path,
+    sqlite_path: Path,
+) -> dict:
+    """
+    Create consolidated metadata.json combining information from fetch, normalize, and publish steps.
+    
+    This creates a single source of truth for pipeline reproducibility, recording:
+    - Download timestamp (UTC)
+    - Source URL(s)
+    - File hash(es)
+    - Row counts per generated table
+    - Normalization and publish timestamps
+    - Schema hashes
+    - Database paths and sizes
+    
+    Args:
+        data_root: Root data directory
+        snapshot_date: Snapshot date (YYYY-MM-DD)
+        publish_dir: Publish directory
+        duckdb_path: Path to DuckDB database
+        sqlite_path: Path to SQLite database
+    
+    Returns:
+        Dictionary with consolidated metadata
+    
+    Raises:
+        FileNotFoundError: If required metadata files are missing
+        IOError: If metadata files cannot be read
+    """
+    meta_dir = publish_dir / "_meta"
+    
+    # Load normalize metadata
+    normalize_meta_path = meta_dir / "normalize.json"
+    if not normalize_meta_path.exists():
+        raise FileNotFoundError(f"Normalize metadata not found: {normalize_meta_path}")
+    
+    with open(normalize_meta_path, "r") as f:
+        normalize_meta = json.load(f)
+    
+    # Load raw manifest from fetch step
+    raw_manifest_path = data_root / "raw" / snapshot_date / "manifest.json"
+    if not raw_manifest_path.exists():
+        raise FileNotFoundError(f"Raw manifest not found: {raw_manifest_path}")
+    
+    with open(raw_manifest_path, "r") as f:
+        raw_manifest = json.load(f)
+    
+    # Extract source URLs and file hashes from raw manifest
+    source_urls = []
+    file_hashes = {}
+    
+    if "files" in raw_manifest:
+        for file_key, file_info in raw_manifest["files"].items():
+            # Collect unique source URLs
+            if "url" in file_info and file_info["url"] not in source_urls:
+                source_urls.append(file_info["url"])
+            # Collect file hashes
+            if "sha256" in file_info:
+                file_hashes[file_key] = {
+                    "sha256": file_info["sha256"],
+                    "size_bytes": file_info.get("size_bytes", 0),
+                    "filename": file_info.get("filename", ""),
+                }
+    
+    # Build consolidated metadata
+    consolidated = {
+        "snapshot_date": snapshot_date,
+        "download_timestamp": raw_manifest.get("created_at", ""),  # UTC timestamp from fetch
+        "source_urls": source_urls,  # List of source URLs
+        "file_hashes": file_hashes,  # SHA256 hashes of downloaded files
+        "normalized_at": normalize_meta.get("normalized_at", ""),  # UTC timestamp from normalize
+        "published_at": datetime.utcnow().isoformat() + "Z",  # UTC timestamp from publish
+        "row_counts": normalize_meta.get("row_counts", {}),  # Row counts per table
+        "schema_hashes": raw_manifest.get("schema_hashes", {}),  # Schema version hashes
+        "databases": {
+            "duckdb": {
+                "path": str(duckdb_path.name),
+                "size_mb": round(duckdb_path.stat().st_size / 1024 / 1024, 2),
+            },
+            "sqlite": {
+                "path": str(sqlite_path.name),
+                "size_mb": round(sqlite_path.stat().st_size / 1024 / 1024, 2),
+            },
+        },
+        "previous_snapshot": raw_manifest.get("previous_snapshot"),  # Link to previous snapshot
+    }
+    
+    return consolidated
+
+
 def publish(
     data_root: Path = Path("data"),
     snapshot_date: Optional[str] = None,
@@ -357,7 +451,8 @@ def publish(
                 meta = json.load(f)
                 snapshot_date = meta.get("snapshot_date", "unknown")
     
-    metadata = {
+    # Write publish.json (individual step metadata)
+    publish_metadata = {
         "snapshot_date": snapshot_date,
         "published_at": datetime.utcnow().isoformat() + "Z",
         "duckdb_path": str(duckdb_path.name),
@@ -370,9 +465,32 @@ def publish(
     meta_dir.mkdir(exist_ok=True)
     
     with open(meta_dir / "publish.json", "w") as f:
-        json.dump(metadata, f, indent=2)
+        json.dump(publish_metadata, f, indent=2)
     
     if not _quiet: console.print(f"[green]✓ Wrote metadata to {meta_dir / 'publish.json'}[/green]")
+    
+    # Create consolidated metadata.json (single source of truth)
+    # This combines information from fetch, normalize, and publish steps
+    try:
+        consolidated_metadata = _create_consolidated_metadata(
+            data_root=data_root,
+            snapshot_date=snapshot_date,
+            publish_dir=publish_dir,
+            duckdb_path=duckdb_path,
+            sqlite_path=sqlite_path,
+        )
+        
+        metadata_path = meta_dir / "metadata.json"
+        with open(metadata_path, "w") as f:
+            json.dump(consolidated_metadata, f, indent=2)
+        
+        if not _quiet: console.print(f"[green]✓ Created consolidated manifest at {metadata_path}[/green]")
+        
+    except Exception as e:
+        # Fail the pipeline if metadata cannot be written
+        error_msg = f"Failed to write consolidated metadata: {e}"
+        if not _quiet: console.print(f"[red]✗ {error_msg}[/red]")
+        raise RuntimeError(error_msg) from e
     
     if not _quiet: console.print(f"\n[bold green]✓ Publish complete![/bold green]")
     if not _quiet: console.print(f"[dim]DuckDB: {duckdb_path}[/dim]")
