@@ -33,11 +33,20 @@ A reproducible workflow for the FAA aircraft registry you can pick up after mont
   - Codes such as "owner_type" aren't explained
 - Python API for programmatic access (`from hangarbay import Registry`)
 - `hangar fleet` command for owner-based fleet search
+- `hangar model` command for make/model search
+  - `hangar model "MD-11"` — find all aircraft of a model across all owners
+  - `hangar model "Boeing" --maker` — search by manufacturer
+  - Support `--export`, `--state`, `--limit` flags like `fleet`
 - Verify checks and anomaly scans (soft warnings)
 - Historical diffs across snapshots
 - DEREG integration for deregistration tracking
 - CI/CD setup with GitHub Actions
 - PyPI publishing
+- Standalone binaries for non-Python users
+  - Use PyInstaller or PyOxidizer to bundle hangarbay into executables
+  - Build for Mac (arm64, x86_64), Windows, Linux
+  - Users download a single file, run from terminal — no Python required
+  - Could automate builds via GitHub Actions on release tags
 
 ---
 

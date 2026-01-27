@@ -148,6 +148,14 @@ hangar sql "SELECT * FROM status_codes"
 # Top states by registrations
 hangar sql "SELECT state_std, COUNT(*) as count FROM owners 
   WHERE state_std != '' GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
+
+# Find all aircraft of a specific model (e.g., MD-11) across all owners
+hangar sql "SELECT o.owner_name, COUNT(*) as count
+  FROM aircraft_decoded a
+  JOIN owners_clean o ON a.n_number = o.n_number
+  WHERE a.model LIKE '%MD-11%'
+  GROUP BY o.owner_name
+  ORDER BY count DESC"
 ```
 
 **Output Formats:**
