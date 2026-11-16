@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-15
+
 ### Added
 - Consolidated `metadata.json` written to `data/publish/_meta/` on each publish, combining download, normalize and publish provenance (source URLs, file hashes, row counts, schema hashes, database sizes) ([#2](https://github.com/stiles/hangarbay/pull/2), thanks @AhmedAli58)
 - `metadata_version` field in `metadata.json` for future schema changes

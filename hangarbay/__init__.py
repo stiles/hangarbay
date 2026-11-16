@@ -10,7 +10,7 @@ Example usage:
     >>> df = hb.query("SELECT * FROM aircraft WHERE state='CA'")  # Custom SQL
 """
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 # Import public API
 from hangarbay.api import (
