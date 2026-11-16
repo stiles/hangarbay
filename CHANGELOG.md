@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- Consolidated `metadata.json` written to `data/publish/_meta/` on each publish, combining download, normalize and publish provenance (source URLs, file hashes, row counts, schema hashes, database sizes) ([#2](https://github.com/stiles/hangarbay/pull/2), thanks @AhmedAli58)
+- `metadata_version` field in `metadata.json` for future schema changes
+
+### Changed
+- Publish warns instead of failing when `metadata.json` can't be built (e.g. raw manifest missing)
+- Replaced deprecated `datetime.utcnow()` in publish with timezone-aware timestamps
+
 ## [0.5.0] - 2026-01-04
 
 ### Added

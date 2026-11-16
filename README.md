@@ -198,6 +198,25 @@ hangar sql "SELECT * FROM status_codes LIMIT 3" --output-format csv
 - **File verification**: SHA256 checksums validate all downloads
 - **Version tracking**: Manifest records schema versions and row counts for each snapshot
 
+### Snapshot metadata
+
+Each publish writes `data/publish/_meta/metadata.json`, a single record of where the current data came from:
+
+| Field | Description |
+|---|---|
+| `metadata_version` | Version of this file's structure |
+| `snapshot_date` | Date of the FAA snapshot (YYYY-MM-DD) |
+| `download_timestamp` | When the FAA files were downloaded (UTC) |
+| `source_urls` | URLs the files were downloaded from |
+| `file_hashes` | SHA256, size and filename for each raw file |
+| `normalized_at` / `published_at` | When the normalize and publish steps ran (UTC) |
+| `row_counts` | Rows in each table |
+| `schema_hashes` | Hash of each table schema |
+| `databases` | Filename and size (MB) of the DuckDB and SQLite files |
+| `previous_snapshot` | Date of the snapshot before this one, if any |
+
+If the raw download manifest is missing (for example after `make clean-all`), publish still completes and prints a warning instead of writing this file.
+
 ## Architecture
 
 ```

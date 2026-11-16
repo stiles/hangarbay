@@ -2,7 +2,7 @@
 
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -313,6 +313,10 @@ def create_sqlite_fts(publish_dir: Path, sqlite_path: Path) -> None:
     if not _quiet: console.print(f"[green]✓ SQLite FTS created: {sqlite_path}[/green]")
 
 
+# Bump when the structure of metadata.json changes
+METADATA_VERSION = 1
+
+
 def _create_consolidated_metadata(
     data_root: Path,
     snapshot_date: str,
@@ -383,12 +387,13 @@ def _create_consolidated_metadata(
     
     # Build consolidated metadata
     consolidated = {
+        "metadata_version": METADATA_VERSION,
         "snapshot_date": snapshot_date,
         "download_timestamp": raw_manifest.get("created_at", ""),  # UTC timestamp from fetch
         "source_urls": source_urls,  # List of source URLs
         "file_hashes": file_hashes,  # SHA256 hashes of downloaded files
         "normalized_at": normalize_meta.get("normalized_at", ""),  # UTC timestamp from normalize
-        "published_at": datetime.utcnow().isoformat() + "Z",  # UTC timestamp from publish
+        "published_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),  # UTC timestamp from publish
         "row_counts": normalize_meta.get("row_counts", {}),  # Row counts per table
         "schema_hashes": raw_manifest.get("schema_hashes", {}),  # Schema version hashes
         "databases": {
@@ -454,7 +459,7 @@ def publish(
     # Write publish.json (individual step metadata)
     publish_metadata = {
         "snapshot_date": snapshot_date,
-        "published_at": datetime.utcnow().isoformat() + "Z",
+        "published_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "duckdb_path": str(duckdb_path.name),
         "sqlite_path": str(sqlite_path.name),
         "duckdb_size_mb": round(duckdb_path.stat().st_size / 1024 / 1024, 2),
@@ -486,11 +491,9 @@ def publish(
         
         if not _quiet: console.print(f"[green]✓ Created consolidated manifest at {metadata_path}[/green]")
         
-    except Exception as e:
-        # Fail the pipeline if metadata cannot be written
-        error_msg = f"Failed to write consolidated metadata: {e}"
-        if not _quiet: console.print(f"[red]✗ {error_msg}[/red]")
-        raise RuntimeError(error_msg) from e
+    except (OSError, ValueError) as e:
+        # metadata.json is supplementary; the databases are already built, so warn instead of failing
+        if not _quiet: console.print(f"[yellow]⚠ Skipped consolidated metadata.json: {e}[/yellow]")
     
     if not _quiet: console.print(f"\n[bold green]✓ Publish complete![/bold green]")
     if not _quiet: console.print(f"[dim]DuckDB: {duckdb_path}[/dim]")

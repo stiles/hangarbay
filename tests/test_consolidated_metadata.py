@@ -47,6 +47,7 @@ def test_create_consolidated_metadata_success(tmp_path):
         duckdb_path=duckdb_path,
         sqlite_path=sqlite_path
     )
+    assert result["metadata_version"] == 1
     assert result["snapshot_date"] == snapshot_date
     assert result["source_urls"] == ["http://example.com/file1"]
     assert "file1" in result["file_hashes"]
